@@ -18,8 +18,8 @@
 - `certs/` — SSL (в .gitignore)
 
 ## 📋 Задачи
-- [x] CI/CD для backend через Railway
-- [x] CI/CD для frontend через Vercel
+- [ ] CI/CD для backend через Railway
+- [ ] CI/CD для frontend через Vercel
 - [ ] Docker сборка и проверка
 - [ ] Проверка на уязвимости
 - [ ] Мониторинг (healthcheck, error tracking)
