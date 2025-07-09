@@ -177,8 +177,8 @@ BACKEND_URL=https://api.alluresallol.com
 | Роль     | Имя GitHub |
 | -------- | ---------- |
 | DevOps   | @DenVR     |
-| Backend  | @backender |
-| Frontend | @frontendy |
+| Backend  | @Pavlo-fo95|
+| Frontend | @qwertyOko|
 
 ---
 
