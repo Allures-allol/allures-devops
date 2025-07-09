@@ -3,19 +3,11 @@
 Этот репозиторий отвечает за DevOps-инфраструктуру проекта **Allures@Allol** — маркетплейса.
 
 ## 📦 Стек
-- CI/CD: GitHub Actions + Railway + Vercel
-- Docker: Backend/Frontend контейнеризация
-- Домены: Cloudflare / Namecheap
-- SSL: Let's Encrypt / Cloudflare SSL
-- Мониторинг: Railway Logs + Healthcheck endpoints
-- Безопасность: Уязвимости сканируются с помощью Trivy/Grype
-
-## 📋 Задачи
-- [ ] CI/CD для backend через Railway
-- [ ] CI/CD для frontend через Vercel
-- [ ] Docker сборка и проверка
-- [ ] Проверка на уязвимости
-- [ ] Мониторинг (healthcheck, error tracking)
+- CI/CD: heroku
+- Домены: Porkbun.com - alluresallol.com
+- SSL: Porkbun.com/Heroku SSL
+- Мониторинг:
+- Безопасность:
 
 # 📁 Структура репозитория allures-devops
 - `allures-devops/`
