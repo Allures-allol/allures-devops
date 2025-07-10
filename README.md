@@ -40,7 +40,6 @@ heroku login
 
    - [Git для Windows](https://git-scm.com/download/win)
    - [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli#download-and-install)
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop)
 
 2. Запусти Git Bash или PowerShell.
 
