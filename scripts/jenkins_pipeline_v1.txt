@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'SERVICE', choices: [
+            'all',
+            'product-service',
+            'sales-service',
+            'review-service',
+            'auth-service',
+            'profile-service',
+            'payment-service',
+            'discount-service',
+            'dashboard-service',
+            'admin-service',
+            'subscription-service'
+        ], description: 'Выберите сервис')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'multi-servis-upd', url: 'git@github.com:Allures-allol/allures-backend.git'
+            }
+        }
+
+        stage('Build & Push Docker Images') {
+            steps {
+                script {
+                    def services = []
+                    if (params.SERVICE == 'all') {
+                        services = [
+                            'product-service','sales-service','review-service','auth-service',
+                            'profile-service','payment-service','discount-service','dashboard-service',
+                            'admin-service','subscription-service'
+                        ]
+                    } else {
+                        services = [params.SERVICE]
+                    }
+
+                    for (svc in services) {
+                        echo "Building and pushing ${svc}"
+
+                        // Контекст - корень репозитория, Dockerfile каждого сервиса
+                        def dockerfilePath = "services/${svc.replace('-', '_')}/Dockerfile"
+                        def contextPath = "." // корень репозитория
+                        def imageName = "denstep123/${svc}:latest"
+
+                        // Билдим с указанием Dockerfile и корневого контекста
+                        docker.build(imageName, "-f ${dockerfilePath} ${contextPath}")
+
+                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                            docker.image(imageName).push()
+                        }
+
+                        sh "docker rmi ${imageName} || true"
+                    }
+                }
+            }
+        }
+
+        stage('Trigger Webhook') {
+            steps {
+                sh "curl -X POST http://48.222.11.128:9000/hooks/allures-webhook?service=${params.SERVICE}"
+            }
+        }
+    }
+}
