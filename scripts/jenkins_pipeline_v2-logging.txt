@@ -1,0 +1,100 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'SERVICE', choices: [
+            'all',
+            'product-service',
+            'sales-service',
+            'review-service',
+            'auth-service',
+            'profile-service',
+            'payment-service',
+            'discount-service',
+            'dashboard-service',
+            'admin-service',
+            'subscription-service'
+        ], description: 'Выберите сервис')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'multi-servis-upd', url: 'git@github.com:Allures-allol/allures-backend.git'
+            }
+        }
+
+        stage('Build & Push Docker Images') {
+            steps {
+                script {
+                    def services = []
+                    if (params.SERVICE == 'all') {
+                        services = [
+                            'product-service','sales-service','review-service','auth-service',
+                            'profile-service','payment-service','discount-service','dashboard-service',
+                            'admin-service','subscription-service'
+                        ]
+                    } else {
+                        services = [params.SERVICE]
+                    }
+
+                    for (svc in services) {
+                        echo "Building and pushing ${svc}"
+
+                        def dockerfilePath = "services/${svc.replace('-', '_')}/Dockerfile"
+                        def contextPath = "."
+                        def imageName = "denstep123/${svc}:latest"
+
+                        // Build & push
+                        docker.build(imageName, "-f ${dockerfilePath} ${contextPath}")
+                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                            docker.image(imageName).push()
+                        }
+                        sh "docker rmi ${imageName} || true"
+                    }
+                }
+            }
+        }
+
+        stage('Trigger Webhook & Show Logs') {
+            steps {
+                script {
+                    // Отправка webhook для деплоя
+                    sh "curl -X POST http://48.222.11.128:9000/hooks/allures-webhook?service=${params.SERVICE}"
+
+                    // Немного ждём, пока контейнер стартанёт
+                    sh "sleep 5"
+
+                    // Сопоставление сервиса и реального имени контейнера
+                    def containerMap = [
+                        'review-service'      : 'review',
+                        'product-service'     : 'product',
+                        'auth-service'        : 'auth',
+                        'subscription-service': 'subscription',
+                        'sales-service'       : 'sales',
+                        'profile-service'     : 'profile',
+                        'payment-service'     : 'payment',
+                        'discount-service'    : 'discount',
+                        'dashboard-service'   : 'dashboard',
+                        'admin-service'       : 'admin'
+                    ]
+
+                    def containers = []
+                    if (params.SERVICE == 'all') {
+                        containers = containerMap.values().toList()
+                    } else {
+                        containers = [containerMap[params.SERVICE]]
+                    }
+
+                    echo "=== Docker containers on this server ==="
+                    sh "docker ps"
+
+                    for (c in containers) {
+                        echo "=== Logs for ${c} ==="
+                        sh "docker logs ${c} --tail 50 || echo 'Container ${c} not found'"
+                    }
+                }
+            }
+        }
+    }
+}
