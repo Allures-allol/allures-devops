@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'SERVICE', choices: [
+            'all',
+            'product-service',
+            'sales-service',
+            'review-service',
+            'auth-service',
+            'profile-service',
+            'payment-service',
+            'discount-service',
+            'dashboard-service',
+            'admin-service',
+            'subscription-service'
+        ], description: 'Выберите сервис')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'multi-servis-upd', url: 'git@github.com:Allures-allol/allures-backend.git'
+            }
+        }
+
+        stage('Update Root Compose') {
+            steps {
+                script {
+                    def composeDir = "/var/lib/jenkins/allures-compose"
+
+                sh """
+                    if [ ! -d ${composeDir} ]; then
+                        mkdir -p ${composeDir}
+                        cd ${composeDir}
+                        git init
+                        git remote add origin git@github.com:Allures-allol/allures-backend.git
+                        git config core.sparseCheckout true
+                        echo "docker-compose.yml" > .git/info/sparse-checkout
+                        git fetch origin multi-servis-upd
+                        git checkout origin/multi-servis-upd
+                    else
+                        cd ${composeDir}
+                        git fetch origin multi-servis-upd
+                        git checkout origin/multi-servis-upd -- docker-compose.yml
+                    fi
+                """
+            }
+        }
+    }
+
+
+        stage('Build, Scan & Push Docker Images') {
+            steps {
+                script {
+                    def services = params.SERVICE == 'all' ?
+                        ['product-service','sales-service','review-service','auth-service','profile-service',
+                         'payment-service','discount-service','dashboard-service','admin-service','subscription-service'] :
+                        [params.SERVICE]
+
+                    for (svc in services) {
+                        echo "Building and scanning ${svc}"
+
+                        def dockerfilePath = "services/${svc.replace('-', '_')}/Dockerfile"
+                        def imageName = "denstep123/${svc}:latest"
+
+                        // Build Docker image
+                        docker.build(imageName, "-f ${dockerfilePath} .")
+
+                        // Trivy security scan
+                        sh """
+                            mkdir -p reports
+                            trivy image --exit-code 0 --severity HIGH,CRITICAL -f table -o reports/trivy_${svc}.txt ${imageName}
+                        """
+
+                        // Push to DockerHub
+                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                            docker.image(imageName).push()
+                        }
+
+                        // Remove local image
+                        sh "docker rmi ${imageName} || true"
+                    }
+                }
+            }
+        }
+
+        stage('Trigger Webhook & Show Logs') {
+            steps {
+                script {
+                    // Отправка webhook для деплоя
+                    sh "curl -X POST http://48.222.11.128:9000/hooks/allures-webhook?service=${params.SERVICE}"
+
+                    // Ждём, пока контейнер стартанёт
+                    sh "sleep 10"
+
+                    // Соответствие сервис → контейнер
+                    def containerMap = [
+                        'review-service'      : 'review_service',
+                        'product-service'     : 'product_service',
+                        'auth-service'        : 'auth_service',
+                        'subscription-service': 'subscription_service',
+                        'sales-service'       : 'sales_service',
+                        'profile-service'     : 'profile_service',
+                        'payment-service'     : 'payment_service',
+                        'discount-service'    : 'discount_service',
+                        'dashboard-service'   : 'dashboard_service',
+                        'admin-service'       : 'admin_service'
+                    ]
+
+                    def containers = params.SERVICE == 'all' ? containerMap.values().toList() : [containerMap[params.SERVICE]]
+
+                    echo "=== Docker containers on this server ==="
+                    sh "docker ps"
+
+                    for (c in containers) {
+                        echo "=== Logs for ${c} ==="
+                        sh "docker logs ${c} --tail 50 || echo 'Container ${c} not found'"
+                    }
+                }
+            }
+        }
+    }
+}
