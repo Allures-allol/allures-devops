@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  fail2web:
+    image: coolaj86/fail2web:latest
+    container_name: fail2web
+    restart: unless-stopped
+    ports:
+      - "8110:5000"  # внешне 8110, внутри контейнер 5000
+    volumes:
+      - /etc/fail2ban:/etc/fail2ban:ro   # чтобы интерфейс видел правила
+      - /var/log:/var/log:ro             # чтобы интерфейс видел логи
+    environment:
+      - F2W_USER=admin
+      - F2W_PASS=admin123
